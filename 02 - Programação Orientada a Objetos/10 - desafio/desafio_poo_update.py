@@ -57,10 +57,8 @@ class Conta:
 
     def sacar(self, valor):
         saldo = self.saldo
-        excedeu_saldo = valor > saldo
-
-        if excedeu_saldo:
-            print("\n@@@ Operação falhou! Você não tem saldo suficiente. @@@")
+        if valor > saldo:
+            print("\n@@@ Operação falhou! Saldo insuficiente. @@@")
 
         elif valor > 0:
             self._saldo -= valor
@@ -68,7 +66,7 @@ class Conta:
             return True
 
         else:
-            print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
+            print("\n@@@ Operação falhou! Valor inválido. @@@")
 
         return False
 
@@ -77,7 +75,7 @@ class Conta:
             self._saldo += valor
             print("\n=== Depósito realizado com sucesso! ===")
         else:
-            print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
+            print("\n@@@ Operação falhou! Valor inválido. @@@")
             return False
 
         return True
@@ -94,13 +92,10 @@ class ContaCorrente(Conta):
             [transacao for transacao in self.historico.transacoes if transacao["tipo"] == Saque.__name__]
         )
 
-        excedeu_limite = valor > self._limite
-        excedeu_saques = numero_saques >= self._limite_saques
+        if valor > self._limite and valor > self.saldo:
+            print("\n@@@ Operação falhou! Valor do saque excede o limite e saldo disponível. @@@")
 
-        if excedeu_limite:
-            print("\n@@@ Operação falhou! O valor do saque excede o limite. @@@")
-
-        elif excedeu_saques:
+        elif numero_saques >= self._limite_saques:
             print("\n@@@ Operação falhou! Número máximo de saques excedido. @@@")
 
         else:
@@ -112,6 +107,33 @@ class ContaCorrente(Conta):
         return f"""\
             Agência:\t{self.agencia}
             C/C:\t\t{self.numero}
+            Titular:\t{self.cliente.nome}
+        """
+
+
+class ContaPoupanca(Conta):
+    def __init__(self, numero, cliente, limite=1000):
+        super().__init__(numero, cliente)
+        self._limite = limite
+
+    def sacar(self, valor):
+        if valor > self.saldo + self._limite:
+            print("\n@@@ Operação falhou! Valor do saque excede o saldo mais o limite da conta poupança. @@@")
+
+        elif valor > 0:
+            self._saldo -= valor
+            print("\n=== Saque realizado com sucesso! ===")
+            return True
+
+        else:
+            print("\n@@@ Operação falhou! Valor inválido. @@@")
+
+        return False
+
+    def __str__(self):
+        return f"""\
+            Agência:\t{self.agencia}
+            C/P:\t\t{self.numero}
             Titular:\t{self.cliente.nome}
         """
 
@@ -129,7 +151,7 @@ class Historico:
             {
                 "tipo": transacao.__class__.__name__,
                 "valor": transacao.valor,
-                "data": datetime.now().strftime("%d-%m-%Y %H:%M:%s"),
+                "data": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
             }
         )
 
@@ -181,7 +203,8 @@ def menu():
     [d]\tDepositar
     [s]\tSacar
     [e]\tExtrato
-    [nc]\tNova conta
+    [nc]\tNova conta corrente
+    [np]\tNova conta poupança
     [lc]\tListar contas
     [nu]\tNovo usuário
     [q]\tSair
@@ -199,7 +222,6 @@ def recuperar_conta_cliente(cliente):
         print("\n@@@ Cliente não possui conta! @@@")
         return
 
-    # FIXME: não permite cliente escolher a conta
     return cliente.contas[0]
 
 
@@ -285,7 +307,7 @@ def criar_cliente(clientes):
     print("\n=== Cliente criado com sucesso! ===")
 
 
-def criar_conta(numero_conta, clientes, contas):
+def criar_conta_corrente(numero_conta, clientes, contas):
     cpf = input("Informe o CPF do cliente: ")
     cliente = filtrar_cliente(cpf, clientes)
 
@@ -297,7 +319,22 @@ def criar_conta(numero_conta, clientes, contas):
     contas.append(conta)
     cliente.contas.append(conta)
 
-    print("\n=== Conta criada com sucesso! ===")
+    print("\n=== Conta corrente criada com sucesso! ===")
+
+
+def criar_conta_poupanca(numero_conta, clientes, contas):
+    cpf = input("Informe o CPF do cliente: ")
+    cliente = filtrar_cliente(cpf, clientes)
+
+    if not cliente:
+        print("\n@@@ Cliente não encontrado, fluxo de criação de conta encerrado! @@@")
+        return
+
+    conta = ContaPoupanca(numero=numero_conta, cliente=cliente)
+    contas.append(conta)
+    cliente.contas.append(conta)
+
+    print("\n=== Conta poupança criada com sucesso! ===")
 
 
 def listar_contas(contas):
@@ -327,7 +364,11 @@ def main():
 
         elif opcao == "nc":
             numero_conta = len(contas) + 1
-            criar_conta(numero_conta, clientes, contas)
+            criar_conta_corrente(numero_conta, clientes, contas)
+
+        elif opcao == "np":
+            numero_conta = len(contas) + 1
+            criar_conta_poupanca(numero_conta, clientes, contas)
 
         elif opcao == "lc":
             listar_contas(contas)
